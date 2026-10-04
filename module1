@@ -1,1 +1,1217 @@
 //每日抓取匯率工具(敷衍用)
+Option Explicit
+
+'========================================================
+' Yahoo Finance 六項市場資料自動更新
+'
+' 1. USD/TWD
+' 2. JPY/TWD
+' 3. EUR/TWD
+' 4. CNY/TWD
+' 5. 台股加權 ^TWII
+' 6. S&P 500 ^GSPC
+'
+' 每個商品獨立尋找 Yahoo 最新有效交易日
+' 不自行判斷台灣/美國假日
+'
+' 完成後：
+' Dashboard  → 最新資料
+' 歷史資料   → 保存歷史
+' Log        → 記錄執行狀態
+' Excel      → 自動儲存
+'========================================================
+
+
+Private Const YAHOO_URL As String = _
+    "https://query1.finance.yahoo.com/v8/finance/chart/"
+
+
+'========================================================
+' 【主要程式】
+'
+' Module2 測試立即更新
+' 或未來 Windows 排程
+' 都會呼叫這個程式
+'========================================================
+
+Public Sub 自動更新市場資料()
+
+    Dim wsDash As Worksheet
+    Dim wsHis As Worksheet
+    Dim wsLog As Worksheet
+
+    Dim usd As Double
+    Dim jpy As Double
+    Dim eur As Double
+    Dim cny As Double
+    Dim twii As Double
+    Dim sp500 As Double
+
+    Dim usdDate As Date
+    Dim jpyDate As Date
+    Dim eurDate As Date
+    Dim cnyDate As Date
+    Dim twiiDate As Date
+    Dim sp500Date As Date
+
+    Dim updateTime As Date
+
+
+    On Error GoTo ErrorHandler
+
+
+    '====================================================
+    ' Excel環境
+    '====================================================
+
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Application.DisplayAlerts = False
+
+
+    updateTime = Now
+
+
+    '====================================================
+    ' 建立/取得工作表
+    '====================================================
+
+    Set wsDash = GetOrCreateSheet("Dashboard")
+    Set wsHis = GetOrCreateSheet("歷史資料")
+    Set wsLog = GetOrCreateSheet("Log")
+
+
+    建立表頭 wsDash, wsHis, wsLog
+
+
+    寫入Log _
+        wsLog, _
+        "START", _
+        "開始取得 Yahoo Finance 資料"
+
+
+    '====================================================
+    ' 1. USD/TWD
+    '====================================================
+
+    寫入Log _
+        wsLog, _
+        "START", _
+        "開始取得 USD/TWD"
+
+
+    usd = GetYahooLatestClose( _
+        "TWD=X", _
+        usdDate)
+
+
+    寫入Log _
+        wsLog, _
+        "SUCCESS", _
+        "USD/TWD：" & _
+        Format(usdDate, "yyyy/mm/dd") & _
+        " / " & _
+        Format(usd, "0.0000")
+
+
+    '====================================================
+    ' 2. JPY/TWD
+    '====================================================
+
+    寫入Log _
+        wsLog, _
+        "START", _
+        "開始取得 JPY/TWD"
+
+
+    jpy = GetYahooLatestClose( _
+        "JPYTWD=X", _
+        jpyDate)
+
+
+    寫入Log _
+        wsLog, _
+        "SUCCESS", _
+        "JPY/TWD：" & _
+        Format(jpyDate, "yyyy/mm/dd") & _
+        " / " & _
+        Format(jpy, "0.0000")
+
+
+    '====================================================
+    ' 3. EUR/TWD
+    '====================================================
+
+    寫入Log _
+        wsLog, _
+        "START", _
+        "開始取得 EUR/TWD"
+
+
+    eur = GetYahooLatestClose( _
+        "EURTWD=X", _
+        eurDate)
+
+
+    寫入Log _
+        wsLog, _
+        "SUCCESS", _
+        "EUR/TWD：" & _
+        Format(eurDate, "yyyy/mm/dd") & _
+        " / " & _
+        Format(eur, "0.0000")
+
+
+    '====================================================
+    ' 4. CNY/TWD
+    '====================================================
+
+    寫入Log _
+        wsLog, _
+        "START", _
+        "開始取得 CNY/TWD"
+
+
+    cny = GetYahooLatestClose( _
+        "CNYTWD=X", _
+        cnyDate)
+
+
+    寫入Log _
+        wsLog, _
+        "SUCCESS", _
+        "CNY/TWD：" & _
+        Format(cnyDate, "yyyy/mm/dd") & _
+        " / " & _
+        Format(cny, "0.0000")
+
+
+    '====================================================
+    ' 5. 台股加權
+    '====================================================
+
+    寫入Log _
+        wsLog, _
+        "START", _
+        "開始取得 ^TWII"
+
+
+    twii = GetYahooLatestClose( _
+        "^TWII", _
+        twiiDate)
+
+
+    寫入Log _
+        wsLog, _
+        "SUCCESS", _
+        "TWII：" & _
+        Format(twiiDate, "yyyy/mm/dd") & _
+        " / " & _
+        Format(twii, "#,##0.00")
+
+
+    '====================================================
+    ' 6. S&P 500
+    '====================================================
+
+    寫入Log _
+        wsLog, _
+        "START", _
+        "開始取得 ^GSPC"
+
+
+    sp500 = GetYahooLatestClose( _
+        "^GSPC", _
+        sp500Date)
+
+
+    寫入Log _
+        wsLog, _
+        "SUCCESS", _
+        "GSPC：" & _
+        Format(sp500Date, "yyyy/mm/dd") & _
+        " / " & _
+        Format(sp500, "#,##0.00")
+
+
+    '====================================================
+    ' 更新 Dashboard
+    '====================================================
+
+    更新Dashboard _
+        wsDash, _
+        updateTime, _
+        usd, usdDate, _
+        jpy, jpyDate, _
+        eur, eurDate, _
+        cny, cnyDate, _
+        twii, twiiDate, _
+        sp500, sp500Date
+
+
+    '====================================================
+    ' 保存歷史資料
+    '====================================================
+
+    儲存歷史資料 _
+        wsHis, _
+        updateTime, _
+        usdDate, usd, _
+        jpyDate, jpy, _
+        eurDate, eur, _
+        cnyDate, cny, _
+        twiiDate, twii, _
+        sp500Date, sp500
+
+
+    寫入Log _
+        wsLog, _
+        "SAVE", _
+        "歷史資料保存完成"
+
+
+    '====================================================
+    ' 自動儲存 Excel
+    '====================================================
+
+    ThisWorkbook.Save
+
+
+    寫入Log _
+        wsLog, _
+        "SAVE", _
+        "Excel檔案保存完成"
+
+
+    寫入Log _
+        wsLog, _
+        "COMPLETE", _
+        "六項市場資料更新完成"
+
+
+    ThisWorkbook.Save
+
+
+    '====================================================
+    ' 恢復 Excel
+    '====================================================
+
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+    Application.DisplayAlerts = True
+
+
+    Exit Sub
+
+
+'========================================================
+' 錯誤處理
+'========================================================
+
+ErrorHandler:
+
+    On Error Resume Next
+
+    If Not wsLog Is Nothing Then
+
+        寫入Log _
+            wsLog, _
+            "ERROR", _
+            "錯誤 " & _
+            Err.Number & _
+            "：" & _
+            Err.Description
+
+    End If
+
+
+    If Not wsDash Is Nothing Then
+
+        wsDash.Range("B13").value = _
+            "ERROR"
+
+    End If
+
+
+    ThisWorkbook.Save
+
+
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+    Application.DisplayAlerts = True
+
+
+    MsgBox _
+        "Yahoo資料更新失敗。" & vbCrLf & vbCrLf & _
+        "錯誤：" & Err.Number & vbCrLf & _
+        Err.Description & vbCrLf & vbCrLf & _
+        "請查看 Log 工作表。", _
+        vbCritical, _
+        "市場資料更新失敗"
+
+End Sub
+
+
+'========================================================
+' 【核心】
+'
+' 從 Yahoo 取得最新有效 Close
+'
+' 不使用 Split
+' 不建立 Close 陣列
+'
+' 直接從 Yahoo JSON 找：
+' timestamp
+' close
+'
+' 再由最後一筆往前找有效 Close
+'========================================================
+
+Private Function GetYahooLatestClose( _
+    ByVal Symbol As String, _
+    ByRef MarketDate As Date) As Double
+
+
+    Dim http As Object
+
+    Dim url As String
+    Dim json As String
+
+    Dim timestampText As String
+    Dim closeText As String
+
+    Dim lastTimestamp As String
+    Dim lastClose As String
+
+    Dim pTimestamp As Long
+    Dim pClose As Long
+
+    Dim timestampStart As Long
+    Dim timestampEnd As Long
+
+    Dim closeStart As Long
+    Dim closeEnd As Long
+
+    Dim i As Long
+
+    Dim values() As String
+
+    Dim tsValue As String
+    Dim closeValue As String
+
+
+    '====================================================
+    ' URL
+    '====================================================
+
+    url = _
+        YAHOO_URL & _
+        YahooEncodeSymbol(Symbol) & _
+        "?range=30d&interval=1d"
+
+
+    '====================================================
+    ' HTTP
+    '====================================================
+
+    Set http = _
+        CreateObject("MSXML2.XMLHTTP")
+
+
+    http.Open _
+        "GET", _
+        url, _
+        False
+
+
+    http.setRequestHeader _
+        "User-Agent", _
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " & _
+        "AppleWebKit/537.36 " & _
+        "Chrome/131.0.0.0 Safari/537.36"
+
+
+    http.send
+
+
+    '====================================================
+    ' HTTP檢查
+    '====================================================
+
+    If http.Status <> 200 Then
+
+        Err.Raise _
+            vbObjectError + 1000, _
+            , _
+            Symbol & _
+            " Yahoo HTTP錯誤：" & _
+            http.Status
+
+    End If
+
+
+    json = http.responseText
+
+
+    If Len(json) = 0 Then
+
+        Err.Raise _
+            vbObjectError + 1001, _
+            , _
+            Symbol & _
+            " Yahoo回傳空白資料"
+
+    End If
+
+
+    '====================================================
+    ' 找 timestamp
+    '====================================================
+
+    pTimestamp = _
+        InStr( _
+            1, _
+            json, _
+            """timestamp"":", _
+            vbTextCompare)
+
+
+    If pTimestamp = 0 Then
+
+        Err.Raise _
+            vbObjectError + 1002, _
+            , _
+            Symbol & _
+            " 找不到 timestamp"
+
+    End If
+
+
+    timestampStart = _
+        InStr( _
+            pTimestamp, _
+            json, _
+            "[")
+
+
+    If timestampStart = 0 Then
+
+        Err.Raise _
+            vbObjectError + 1003, _
+            , _
+            Symbol & _
+            " 找不到 timestamp ["
+
+    End If
+
+
+    timestampEnd = _
+        InStr( _
+            timestampStart, _
+            json, _
+            "]")
+
+
+    If timestampEnd = 0 Then
+
+        Err.Raise _
+            vbObjectError + 1004, _
+            , _
+            Symbol & _
+            " 找不到 timestamp ]"
+
+    End If
+
+
+    timestampText = _
+        Mid( _
+            json, _
+            timestampStart + 1, _
+            timestampEnd - timestampStart - 1)
+
+
+    '====================================================
+    ' 找最後 timestamp
+    '====================================================
+
+    lastTimestamp = _
+        取得最後Timestamp(timestampText)
+
+
+    If lastTimestamp = "" Then
+
+        Err.Raise _
+            vbObjectError + 1005, _
+            , _
+            Symbol & _
+            " 找不到有效 timestamp"
+
+    End If
+
+
+    '====================================================
+    ' 找 close
+    '====================================================
+
+    pClose = _
+        InStr( _
+            1, _
+            json, _
+            """close"":", _
+            vbTextCompare)
+
+
+    If pClose = 0 Then
+
+        Err.Raise _
+            vbObjectError + 1006, _
+            , _
+            Symbol & _
+            " 找不到 close"
+
+    End If
+
+
+    closeStart = _
+        InStr( _
+            pClose, _
+            json, _
+            "[")
+
+
+    If closeStart = 0 Then
+
+        Err.Raise _
+            vbObjectError + 1007, _
+            , _
+            Symbol & _
+            " 找不到 close ["
+
+    End If
+
+
+    closeEnd = _
+        InStr( _
+            closeStart, _
+            json, _
+            "]")
+
+
+    If closeEnd = 0 Then
+
+        Err.Raise _
+            vbObjectError + 1008, _
+            , _
+            Symbol & _
+            " 找不到 close ]"
+
+    End If
+
+
+    closeText = _
+        Mid( _
+            json, _
+            closeStart + 1, _
+            closeEnd - closeStart - 1)
+
+
+    '====================================================
+    ' 找最後有效 Close
+    '====================================================
+
+    lastClose = _
+        取得最後有效Close(closeText)
+
+
+    If lastClose = "" Then
+
+        Err.Raise _
+            vbObjectError + 1009, _
+            , _
+            Symbol & _
+            " 找不到有效 Close"
+
+    End If
+
+
+    '====================================================
+    ' 轉換
+    '====================================================
+
+    MarketDate = _
+        UnixToDate( _
+            CDbl(lastTimestamp))
+
+
+    GetYahooLatestClose = _
+        CDbl(lastClose)
+
+
+End Function
+
+
+'========================================================
+' 取得最後 timestamp
+'========================================================
+
+Private Function 取得最後Timestamp( _
+    ByVal Text As String) As String
+
+    Dim i As Long
+
+    Dim ch As String
+    Dim temp As String
+    Dim result As String
+
+
+    temp = ""
+    result = ""
+
+
+    For i = 1 To Len(Text)
+
+        ch = Mid(Text, i, 1)
+
+
+        If ch >= "0" And ch <= "9" Then
+
+            temp = temp & ch
+
+        Else
+
+            If temp <> "" Then
+
+                result = temp
+                temp = ""
+
+            End If
+
+        End If
+
+    Next i
+
+
+    If temp <> "" Then
+        result = temp
+    End If
+
+
+    取得最後Timestamp = result
+
+End Function
+
+
+'========================================================
+' 取得最後有效 Close
+'
+' 支援：
+'
+' 123.45
+' 123
+' null
+' -123.45
+'========================================================
+
+Private Function 取得最後有效Close( _
+    ByVal Text As String) As String
+
+    Dim i As Long
+
+    Dim ch As String
+    Dim temp As String
+    Dim result As String
+
+
+    temp = ""
+    result = ""
+
+
+    For i = 1 To Len(Text)
+
+        ch = Mid(Text, i, 1)
+
+
+        If _
+            (ch >= "0" And ch <= "9") _
+            Or ch = "." _
+            Or ch = "-" Then
+
+            temp = temp & ch
+
+        Else
+
+            If temp <> "" Then
+
+                If IsNumeric(temp) Then
+
+                    result = temp
+
+                End If
+
+                temp = ""
+
+            End If
+
+        End If
+
+    Next i
+
+
+    If temp <> "" Then
+
+        If IsNumeric(temp) Then
+            result = temp
+        End If
+
+    End If
+
+
+    取得最後有效Close = result
+
+End Function
+
+
+'========================================================
+' Unix Timestamp → Excel Date
+'========================================================
+
+Private Function UnixToDate( _
+    ByVal UnixTime As Double) As Date
+
+    UnixToDate = _
+        DateAdd( _
+            "s", _
+            UnixTime, _
+            DateSerial(1970, 1, 1))
+
+End Function
+
+
+'========================================================
+' Yahoo Symbol URL Encode
+'========================================================
+
+Private Function YahooEncodeSymbol( _
+    ByVal Symbol As String) As String
+
+    Symbol = _
+        Replace(Symbol, "^", "%5E")
+
+    Symbol = _
+        Replace(Symbol, "=", "%3D")
+
+    YahooEncodeSymbol = Symbol
+
+End Function
+
+
+'========================================================
+' Dashboard
+'========================================================
+
+Private Sub 更新Dashboard( _
+    ByVal ws As Worksheet, _
+    ByVal updateTime As Date, _
+    ByVal usd As Double, ByVal usdDate As Date, _
+    ByVal jpy As Double, ByVal jpyDate As Date, _
+    ByVal eur As Double, ByVal eurDate As Date, _
+    ByVal cny As Double, ByVal cnyDate As Date, _
+    ByVal twii As Double, ByVal twiiDate As Date, _
+    ByVal sp500 As Double, ByVal sp500Date As Date)
+
+
+    ws.Range("A1").value = _
+        "市場資料自動監控"
+
+
+    ws.Range("A3").value = _
+        "本次更新時間"
+
+    ws.Range("B3").value = _
+        updateTime
+
+
+    ws.Range("A5").value = _
+        "美元/TWD"
+
+    ws.Range("B5").value = usd
+
+    ws.Range("C5").value = usdDate
+
+
+    ws.Range("A6").value = _
+        "日圓/TWD"
+
+    ws.Range("B6").value = jpy
+
+    ws.Range("C6").value = jpyDate
+
+
+    ws.Range("A7").value = _
+        "歐元/TWD"
+
+    ws.Range("B7").value = eur
+
+    ws.Range("C7").value = eurDate
+
+
+    ws.Range("A8").value = _
+        "人民幣/TWD"
+
+    ws.Range("B8").value = cny
+
+    ws.Range("C8").value = cnyDate
+
+
+    ws.Range("A10").value = _
+        "台股加權 ^TWII"
+
+    ws.Range("B10").value = twii
+
+    ws.Range("C10").value = twiiDate
+
+
+    ws.Range("A11").value = _
+        "S&P 500 ^GSPC"
+
+    ws.Range("B11").value = sp500
+
+    ws.Range("C11").value = sp500Date
+
+
+    ws.Range("A13").value = _
+        "更新狀態"
+
+    ws.Range("B13").value = _
+        "SUCCESS"
+
+
+    ws.Range("B3").NumberFormat = _
+        "yyyy/mm/dd hh:mm:ss"
+
+
+    ws.Range("C5:C11").NumberFormat = _
+        "yyyy/mm/dd"
+
+
+    ws.Range("B5:B8").NumberFormat = _
+        "0.0000"
+
+
+    ws.Range("B10:B11").NumberFormat = _
+        "#,##0.00"
+
+
+    ws.Columns("A:C").AutoFit
+
+End Sub
+
+
+'========================================================
+' 歷史資料
+'========================================================
+
+Private Sub 儲存歷史資料( _
+    ByVal ws As Worksheet, _
+    ByVal updateTime As Date, _
+    ByVal usdDate As Date, ByVal usd As Double, _
+    ByVal jpyDate As Date, ByVal jpy As Double, _
+    ByVal eurDate As Date, ByVal eur As Double, _
+    ByVal cnyDate As Date, ByVal cny As Double, _
+    ByVal twiiDate As Date, ByVal twii As Double, _
+    ByVal sp500Date As Date, ByVal sp500 As Double)
+
+
+    Dim lastRow As Long
+
+
+    lastRow = _
+        ws.Cells( _
+            ws.Rows.Count, _
+            "A").End(xlUp).Row
+
+
+    If lastRow < 1 Then
+        lastRow = 1
+    End If
+
+
+    '====================================================
+    ' 新增一筆
+    '====================================================
+
+    lastRow = lastRow + 1
+
+
+    ws.Cells(lastRow, 1).value = _
+        updateTime
+
+
+    ws.Cells(lastRow, 2).value = _
+        usdDate
+
+    ws.Cells(lastRow, 3).value = _
+        usd
+
+
+    ws.Cells(lastRow, 4).value = _
+        jpyDate
+
+    ws.Cells(lastRow, 5).value = _
+        jpy
+
+
+    ws.Cells(lastRow, 6).value = _
+        eurDate
+
+    ws.Cells(lastRow, 7).value = _
+        eur
+
+
+    ws.Cells(lastRow, 8).value = _
+        cnyDate
+
+    ws.Cells(lastRow, 9).value = _
+        cny
+
+
+    ws.Cells(lastRow, 10).value = _
+        twiiDate
+
+    ws.Cells(lastRow, 11).value = _
+        twii
+
+
+    ws.Cells(lastRow, 12).value = _
+        sp500Date
+
+    ws.Cells(lastRow, 13).value = _
+        sp500
+
+
+    格式化歷史資料 ws
+
+End Sub
+
+
+'========================================================
+' 歷史資料格式
+'========================================================
+
+Private Sub 格式化歷史資料( _
+    ByVal ws As Worksheet)
+
+
+    ws.Columns("A").NumberFormat = _
+        "yyyy/mm/dd hh:mm:ss"
+
+
+    ws.Columns("B").NumberFormat = _
+        "yyyy/mm/dd"
+
+
+    ws.Columns("D").NumberFormat = _
+        "yyyy/mm/dd"
+
+
+    ws.Columns("F").NumberFormat = _
+        "yyyy/mm/dd"
+
+
+    ws.Columns("H").NumberFormat = _
+        "yyyy/mm/dd"
+
+
+    ws.Columns("J").NumberFormat = _
+        "yyyy/mm/dd"
+
+
+    ws.Columns("L").NumberFormat = _
+        "yyyy/mm/dd"
+
+
+    ws.Columns("C").NumberFormat = _
+        "0.0000"
+
+
+    ws.Columns("E").NumberFormat = _
+        "0.0000"
+
+
+    ws.Columns("G").NumberFormat = _
+        "0.0000"
+
+
+    ws.Columns("I").NumberFormat = _
+        "0.0000"
+
+
+    ws.Columns("K").NumberFormat = _
+        "#,##0.00"
+
+
+    ws.Columns("M").NumberFormat = _
+        "#,##0.00"
+
+
+    ws.Columns("A:M").AutoFit
+
+End Sub
+
+
+'========================================================
+' Log
+'========================================================
+
+Private Sub 寫入Log( _
+    ByVal ws As Worksheet, _
+    ByVal Status As String, _
+    ByVal Message As String)
+
+
+    Dim r As Long
+
+
+    r = _
+        ws.Cells( _
+            ws.Rows.Count, _
+            "A").End(xlUp).Row + 1
+
+
+    ws.Cells(r, 1).value = Now
+
+    ws.Cells(r, 2).value = Status
+
+    ws.Cells(r, 3).value = Message
+
+
+    ws.Cells(r, 1).NumberFormat = _
+        "yyyy/mm/dd hh:mm:ss"
+
+
+    ws.Columns("A:C").AutoFit
+
+End Sub
+
+
+'========================================================
+' 建立工作表
+'========================================================
+
+Private Function GetOrCreateSheet( _
+    ByVal SheetName As String) As Worksheet
+
+
+    On Error Resume Next
+
+
+    Set GetOrCreateSheet = _
+        ThisWorkbook.Worksheets(SheetName)
+
+
+    On Error GoTo 0
+
+
+    If GetOrCreateSheet Is Nothing Then
+
+        Set GetOrCreateSheet = _
+            ThisWorkbook.Worksheets.Add
+
+
+        GetOrCreateSheet.Name = _
+            SheetName
+
+    End If
+
+End Function
+
+
+'========================================================
+' 建立表頭
+'========================================================
+
+Private Sub 建立表頭( _
+    ByVal wsDash As Worksheet, _
+    ByVal wsHis As Worksheet, _
+    ByVal wsLog As Worksheet)
+
+
+    '----------------------------------------------------
+    ' Dashboard
+    '----------------------------------------------------
+
+    wsDash.Range("A1").value = _
+        "市場資料自動監控"
+
+
+    wsDash.Range("A3").value = _
+        "本次更新時間"
+
+
+    wsDash.Range("A5").value = _
+        "美元/TWD"
+
+
+    wsDash.Range("A6").value = _
+        "日圓/TWD"
+
+
+    wsDash.Range("A7").value = _
+        "歐元/TWD"
+
+
+    wsDash.Range("A8").value = _
+        "人民幣/TWD"
+
+
+    wsDash.Range("A10").value = _
+        "台股加權 ^TWII"
+
+
+    wsDash.Range("A11").value = _
+        "S&P 500 ^GSPC"
+
+
+    wsDash.Range("A13").value = _
+        "更新狀態"
+
+
+    '----------------------------------------------------
+    ' 歷史資料
+    '----------------------------------------------------
+
+    wsHis.Range("A1:M1").value = Array( _
+        "更新時間", _
+        "USD日期", _
+        "USD/TWD", _
+        "JPY日期", _
+        "JPY/TWD", _
+        "EUR日期", _
+        "EUR/TWD", _
+        "CNY日期", _
+        "CNY/TWD", _
+        "TWII日期", _
+        "TWII", _
+        "GSPC日期", _
+        "GSPC")
+
+
+    '----------------------------------------------------
+    ' Log
+    '----------------------------------------------------
+
+    wsLog.Range("A1:C1").value = Array( _
+        "時間", _
+        "狀態", _
+        "說明")
+
+
+    wsDash.Rows(1).Font.Bold = True
+
+    wsHis.Rows(1).Font.Bold = True
+
+    wsLog.Rows(1).Font.Bold = True
+
+End Sub
+
+
