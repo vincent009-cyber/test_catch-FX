@@ -60,19 +60,7 @@ a. Module1 — Yahoo Finance 資料取得與更新
 b. Module2 — 手動更新與排程控制
 c. Module3 — 資料解析與測試
 
-Yahoo Finance
-↓
-取得最新有效交易日
-↓
-取得 Close
-↓
-更新 Dashboard
-↓
-保存歷史資料
-↓
-寫入 Log
-↓
-Excel Save
+Yahoo Finance/取得最新有效交易日/取得 Close/更新 Dashboard/保存歷史資料/寫入 Log/Excel Save
 
 測試狀態
 Yahoo Finance：完成
